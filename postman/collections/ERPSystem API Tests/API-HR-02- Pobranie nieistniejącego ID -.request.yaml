@@ -1,0 +1,14 @@
+$kind: http-request
+name: "API-HR-02: Pobranie nieistniejącego ID -"
+url: http://localhost:8081/api/hr/payroll/99999
+method: GET
+headers:
+  Authorization: Bearer {{jwt_token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-HR-02: Nieistniejące ID - Status 404 Not Found", function () {
+          pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 7988

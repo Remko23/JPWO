@@ -1,0 +1,31 @@
+$kind: http-request
+name: "API-INV-01: Utworzenie ruchu magazynowego +"
+url: http://localhost:8081/api/inventory/adjustments
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{jwt_token}}
+body:
+  type: json
+  content: |-
+    {
+      "itemId": 1,
+      "locationId": 1,
+      "qtyDelta": 50,
+      "unitCost": 10.00,
+      "reason": "Stock in"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-INV-01: Utworzenie ruchu magazynowego - Status 200/201", function () {
+          pm.expect(pm.response.code).to.be.oneOf([200, 201]);
+      });
+
+      pm.test("API-INV-01: Odpowiedź zawiera id i status", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property("id");
+          pm.expect(jsonData.status).to.eql("POSTED");
+      });
+    language: text/javascript
+order: 3000

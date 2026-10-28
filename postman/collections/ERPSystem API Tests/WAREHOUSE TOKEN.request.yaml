@@ -1,0 +1,33 @@
+$kind: http-request
+url: http://localhost:8081/api/auth/login
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \  \"username\": \"{{auth_password_1670}}\",\r
+
+    \  \"password\": \"{{auth_password_1670}}\"\r
+
+    }"
+auth:
+  type: basic
+  credentials:
+    username: "{{auth_password_1670}}"
+    password: "{{auth_password_1670}}"
+scripts:
+  - type: afterResponse
+    code: "pm.test(\"Token JWT zwracany w odpowiedzi\", function () {\r
+
+      \    var jsonData = pm.response.json();\r
+
+      \    pm.expect(jsonData).to.have.property('accessToken');\r
+
+      \    pm.collectionVariables.set(\"{{auth_password_1670}}_token\",
+      jsonData.accessToken)\r
+
+      });"
+    language: text/javascript
+order: 5000

@@ -1,0 +1,31 @@
+$kind: http-request
+name: "API-INV-03: Brak wymaganego pola -"
+url: http://localhost:8081/api/inventory/adjustments
+method: POST
+headers:
+  Authorization: Bearer {{{{auth_password_1670}}_token}}
+body:
+  type: json
+  content: "{\r
+
+    \  \"itemId\": 1,\r
+
+    \  \"qtyDelta\": 5\r
+
+    }"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-INV-03: Brak wymaganego pola - Status 400 Bad Request", function () {
+          pm.response.to.have.status(400);
+      });
+
+      pm.test("API-INV-03: Walidacja błędu", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.detail).to.include("must not be null");
+      });
+    language: text/javascript
+  - type: beforeRequest
+    code: ""
+    language: text/javascript
+order: 6000

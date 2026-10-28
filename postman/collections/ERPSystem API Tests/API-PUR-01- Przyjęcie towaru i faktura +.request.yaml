@@ -1,0 +1,31 @@
+$kind: http-request
+name: "API-PUR-01: Przyjęcie towaru i faktura +"
+url: http://localhost:8081/api/purchasing/goods-receipts
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{jwt_token}}
+body:
+  type: json
+  content: |-
+    {
+      "purchaseOrderId": 31,
+      "stockLocationId": 1,
+      "lines": [
+        { "poLineId": 31, "qty": 10 }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-PUR-01: Przyjęcie towaru i rejestracja faktury - Status 201 Created", function () {
+          pm.response.to.have.status(201);
+      });
+
+      pm.test("API-PUR-01: Zwiększenie stanu i utworzenie dokumentu GR", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.status).to.eql("POSTED");
+          pm.expect(jsonData).to.have.property("id");
+      });
+    language: text/javascript
+order: 7000

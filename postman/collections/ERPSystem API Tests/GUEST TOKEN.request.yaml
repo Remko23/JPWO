@@ -1,0 +1,32 @@
+$kind: http-request
+url: http://localhost:8081/api/auth/login
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: "{\r
+
+    \  \"username\": \"guest\",\r
+
+    \  \"password\": \"guest\"\r
+
+    }"
+auth:
+  type: basic
+  credentials:
+    username: guest
+    password: guest
+scripts:
+  - type: afterResponse
+    code: "pm.test(\"Token JWT zwracany w odpowiedzi\", function () {\r
+
+      \    var jsonData = pm.response.json();\r
+
+      \    pm.expect(jsonData).to.have.property('accessToken');\r
+
+      \    pm.collectionVariables.set(\"guest_token\", jsonData.accessToken)\r
+
+      });"
+    language: text/javascript
+order: 8000

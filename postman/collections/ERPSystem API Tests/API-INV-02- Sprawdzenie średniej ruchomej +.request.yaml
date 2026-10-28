@@ -1,0 +1,18 @@
+$kind: http-request
+name: "API-INV-02: Sprawdzenie średniej ruchomej +"
+url: http://localhost:8081/api/inventory/items/1/on-hand
+method: GET
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{jwt_token}}
+scripts:
+  - type: afterResponse
+    code: "pm.test(\"API-INV-01: Średnia ruchoma jest liczbą\", function () {\r
+
+      \    var jsonData = pm.response.json();\r
+
+      \    pm.expect(isNaN(parseFloat(jsonData.avgUnitCost))).to.be.false;\r
+
+      });"
+    language: text/javascript
+order: 4000

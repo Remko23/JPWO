@@ -1,0 +1,14 @@
+workspace:
+  id: a9a5dbd5-4d56-476e-891f-a4a4cdea6d70
+localResources:
+  specs:
+    - ../frontend/openapi/openapi.json
+cloudResources:
+  collections:
+    ../postman/collections/ERPSystem API Tests: 50042974-1dd13759-828d-4651-bb9a-4824d2a3cd41
+  environments:
+    ../postman/environments/ERP Env.environment.yaml: 50042974-9c2234f7-c716-4596-adab-34897cc95c4e
+  specs:
+    ../frontend/openapi/openapi.json: c40c9319-116a-492e-9e63-bfd7b6539b28
+  globals:
+    ../postman/globals/workspace.globals.yaml: f386d8b6-2070-4f09-8d65-fde870ef1310

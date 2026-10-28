@@ -1,0 +1,15 @@
+$kind: http-request
+name: "API-AUD-01: Brak uprawnień -"
+description: ""
+url: http://localhost:8081/api/audit
+method: GET
+headers:
+  Authorization: Bearer {{guest_token}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-AUD-01: Brak uprawnień admina - Status 403 Forbidden", function () {
+          pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 9000

@@ -1,0 +1,525 @@
+{
+  "info": {
+    "_postman_id": "1dd13759-828d-4651-bb9a-4824d2a3cd41",
+    "name": "ERPSystem API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "50042974",
+    "_collection_link": "https://go.postman.co/collection/50042974-1dd13759-828d-4651-bb9a-4824d2a3cd41?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "API-IAM-01: Logowanie użytkownika (POST +)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-IAM-01: Logowanie poprawne - Status 200 OK\", function () {\n    pm.response.to.have.status(200);\n});\n\npm.test(\"API-IAM-01: Token JWT zwracany w odpowiedzi\", function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property('accessToken');\n    pm.collectionVariables.set(\"jwt_token\", jsonData.accessToken)\n});\n\npm.test(\"API-IAM-02-PRE: Sprawdzenie obecności ciasteczka refresh_token\", function () {\n    pm.expect(pm.cookies.has(\"refresh_token\")).to.be.true;\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "admin",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{auth_password_1abp}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-IAM-02: Odmowa dostępu bez tokena (GET -)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-IAM-02: Brak tokena - Status 401 Unauthorized\", function () {\n    pm.response.to.have.status(401);\n});\n\npm.test(\"API-IAM-02: Zwrot błędu braku autoryzacji w JSON\", function () {\n    var jsonData = pm.response.json();\n    var errorMessage = jsonData.title || jsonData.detail || jsonData.error || \"\";\n    pm.expect(errorMessage.toLowerCase()).to.include(\"unauthorized\");\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/iam/protected-resource",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "iam",
+            "protected-resource"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-INV-01: Utworzenie ruchu magazynowego (POST +)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-INV-01: Utworzenie ruchu magazynowego - Status 200/201\", function () {\n    pm.expect(pm.response.code).to.be.oneOf([200, 201]);\n});\n\npm.test(\"API-INV-01: Odpowiedź zawiera id i status\", function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData).to.have.property(\"id\");\n    pm.expect(jsonData.status).to.eql(\"POSTED\");\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"itemId\": 1,\n  \"locationId\": 1,\n  \"qtyDelta\": 50,\n  \"unitCost\": 10.00,\n  \"reason\": \"Stock in\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/inventory/adjustments",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "inventory",
+            "adjustments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-INV-02: Sprawdzenie średniej ruchomej (GET +)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-INV-01: Średnia ruchoma jest liczbą\", function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(isNaN(parseFloat(jsonData.avgUnitCost))).to.be.false;\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8081/api/inventory/items/1/on-hand",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "inventory",
+            "items",
+            "1",
+            "on-hand"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "WAREHOUSE TOKEN",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Token JWT zwracany w odpowiedzi\", function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData).to.have.property('accessToken');\r\n    pm.collectionVariables.set(\"{{auth_password_1670}}_token\", jsonData.accessToken)\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "{{auth_password_1670}}",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "{{auth_password_1670}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"username\": \"{{auth_password_1670}}\",\r\n  \"password\": \"{{auth_password_1670}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-INV-03: Brak wymaganego pola (POST -)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-INV-03: Brak wymaganego pola - Status 400 Bad Request\", function () {\n    pm.response.to.have.status(400);\n});\n\npm.test(\"API-INV-03: Walidacja błędu\", function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData.detail).to.include(\"must not be null\");\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{{{auth_password_1670}}_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"itemId\": 1,\r\n  \"qtyDelta\": 5\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/inventory/adjustments",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "inventory",
+            "adjustments"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-PUR-01: Przyjęcie towaru i faktura (POST +)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-PUR-01: Przyjęcie towaru i rejestracja faktury - Status 201 Created\", function () {\n    pm.response.to.have.status(201);\n});\n\npm.test(\"API-PUR-01: Zwiększenie stanu i utworzenie dokumentu GR\", function () {\n    var jsonData = pm.response.json();\n    pm.expect(jsonData.status).to.eql(\"POSTED\");\n    pm.expect(jsonData).to.have.property(\"id\");\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"purchaseOrderId\": 31,\n  \"stockLocationId\": 1,\n  \"lines\": [\n    { \"poLineId\": 31, \"qty\": 10 }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/purchasing/goods-receipts",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "purchasing",
+            "goods-receipts"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-HR-02: Pobranie nieistniejącego ID (GET -)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-HR-02: Nieistniejące ID - Status 404 Not Found\", function () {\n    pm.response.to.have.status(404);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{jwt_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8081/api/hr/payroll/99999",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "hr",
+            "payroll",
+            "99999"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "GUEST TOKEN",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Token JWT zwracany w odpowiedzi\", function () {\r\n    var jsonData = pm.response.json();\r\n    pm.expect(jsonData).to.have.property('accessToken');\r\n    pm.collectionVariables.set(\"guest_token\", jsonData.accessToken)\r\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            {
+              "key": "username",
+              "value": "guest",
+              "type": "string"
+            },
+            {
+              "key": "password",
+              "value": "guest",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"username\": \"guest\",\r\n  \"password\": \"guest\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "http://localhost:8081/api/auth/login",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "API-AUD-01: Brak uprawnień (GET -)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"API-AUD-01: Brak uprawnień admina - Status 403 Forbidden\", function () {\n    pm.response.to.have.status(403);\n});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guest_token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://localhost:8081/api/audit",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8081",
+          "path": [
+            "api",
+            "audit"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "warehouse_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "guest_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "auth_password_1abp",
+      "type": "string",
+      "secret": true
+    },
+    {
+      "key": "auth_password_1670",
+      "type": "string",
+      "secret": true
+    }
+  ]
+}

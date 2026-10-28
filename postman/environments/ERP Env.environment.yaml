@@ -1,0 +1,8 @@
+name: ERP Env
+values:
+  - key: jwt_token
+    value: ''
+  - key: warehouse_token
+    value: ''
+  - key: guest_token
+    value: ''

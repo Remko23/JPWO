@@ -1,0 +1,1398 @@
+{
+  "info": {
+    "_postman_id": "4e89b512-8542-4c7c-9c2f-4d98514db227",
+    "name": "JPWO - API tests",
+    "description": "Dokładnie osiem testów API: po dwa dla sales, manufacturing, payments i HR. Dodatkowe requesty przygotowują dane i stan kont. Uruchamiaj całą kolekcję od początku.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8081",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Setup",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('runId', Date.now().toString() + Math.floor(Math.random() * 10000).toString());",
+                  "const d = new Date();",
+                  "pm.environment.set('postingDate', [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "pm.environment.set('accessToken', body.accessToken);",
+                  "pm.environment.set('authenticatedUsername', body.username);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "Find STOCK location",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const locations = pm.response.json();",
+                  "const stock = locations.find(function (location) { return location.locationType === 'STOCK' && location.active; });",
+                  "pm.expect(stock, 'An active STOCK location is required').to.exist;",
+                  "pm.environment.set('stockLocationId', stock.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/masterdata/locations"
+          }
+        }
+      ]
+    },
+    {
+      "name": "API-SAL-01 - Sales",
+      "item": [
+        {
+          "name": "Test 1 - Prepare customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('salesCustomer1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"PM-SAL1-{{runId}}\",\"name\":\"Postman sales customer 1\",\"vendor\":false,\"customer\":true,\"paymentTermsDays\":30}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/partners"
+          }
+        },
+        {
+          "name": "Test 1 - Prepare finished item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('salesItem1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-SAL1-{{runId}}\",\"name\":\"Postman finished item 1\",\"itemType\":\"FINISHED\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"10\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 1 - Seed finished stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{salesItem1}}\",\"locationId\":\"{{stockLocationId}}\",\"qtyDelta\":\"20\",\"unitCost\":\"10\",\"reason\":\"Postman API test stock\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/inventory/adjustments"
+          }
+        },
+        {
+          "name": "Test 1 - Create sales order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "pm.environment.set('salesOrder1', order.id);",
+                  "pm.environment.set('salesLine1', order.lines[0].id);",
+                  "pm.environment.set('salesOrder1Status', order.status);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"partnerId\":\"{{salesCustomer1}}\",\"orderDate\":\"{{postingDate}}\",\"lines\":[{\"itemId\":\"{{salesItem1}}\",\"qtyOrdered\":\"2\",\"unitPrice\":\"100\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/sales/sales-orders"
+          }
+        },
+        {
+          "name": "Test 1 - Confirm sales order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/sales/sales-orders/{{salesOrder1}}/confirm"
+          }
+        },
+        {
+          "name": "API-SAL-01 - Realizacja wydania",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const delivery = pm.response.json();",
+                  "pm.test('API-SAL-01 - Realizacja wydania', function () {",
+                  "  pm.expect(delivery.status).to.eql('POSTED');",
+                  "  pm.expect(delivery.lines).to.have.lengthOf(1);",
+                  "  pm.expect(Number(delivery.lines[0].qtyShipped)).to.eql(2);",
+                  "  pm.expect(delivery.lines[0].journalEntryId).to.be.a('number');",
+                  "  pm.expect(Number(delivery.lines[0].unitCost)).to.eql(10);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"salesOrderId\":\"{{salesOrder1}}\",\"stockLocationId\":\"{{stockLocationId}}\",\"postingDate\":\"{{postingDate}}\",\"lines\":[{\"soLineId\":\"{{salesLine1}}\",\"qty\":\"2\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/sales/deliveries"
+          }
+        },
+        {
+          "name": "Test 2 - Prepare customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('salesCustomer2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"PM-SAL2-{{runId}}\",\"name\":\"Postman sales customer 2\",\"vendor\":false,\"customer\":true,\"paymentTermsDays\":30}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/partners"
+          }
+        },
+        {
+          "name": "Test 2 - Prepare finished item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('salesItem2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-SAL2-{{runId}}\",\"name\":\"Postman finished item 2\",\"itemType\":\"FINISHED\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"10\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 2 - Seed finished stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{salesItem2}}\",\"locationId\":\"{{stockLocationId}}\",\"qtyDelta\":\"20\",\"unitCost\":\"10\",\"reason\":\"Postman API test stock\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/inventory/adjustments"
+          }
+        },
+        {
+          "name": "Test 2 - Create sales order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const order = pm.response.json();",
+                  "pm.environment.set('salesOrder2', order.id);",
+                  "pm.environment.set('salesLine2', order.lines[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"partnerId\":\"{{salesCustomer2}}\",\"orderDate\":\"{{postingDate}}\",\"lines\":[{\"itemId\":\"{{salesItem2}}\",\"qtyOrdered\":\"2\",\"unitPrice\":\"100\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/sales/sales-orders"
+          }
+        },
+        {
+          "name": "Test 2 - Confirm sales order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/sales/sales-orders/{{salesOrder2}}/confirm"
+          }
+        },
+        {
+          "name": "Test 2 - Post delivery",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"salesOrderId\":\"{{salesOrder2}}\",\"stockLocationId\":\"{{stockLocationId}}\",\"postingDate\":\"{{postingDate}}\",\"lines\":[{\"soLineId\":\"{{salesLine2}}\",\"qty\":\"2\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/sales/deliveries"
+          }
+        },
+        {
+          "name": "Test 2 - Capture ledger before invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const trialBalance = pm.response.json();",
+                  "const snapshot = {};",
+                  "['1200', '4100', '2400', '5100', '1340'].forEach(function (code) {",
+                  "  const line = trialBalance.lines.find(function (item) { return item.code === code; });",
+                  "  pm.expect(line, 'Account ' + code + ' must exist in the trial balance').to.exist;",
+                  "  snapshot[code] = { debit: Number(line.totalDebit), credit: Number(line.totalCredit) };",
+                  "});",
+                  "pm.environment.set('salesLedgerBeforeInvoice', JSON.stringify(snapshot));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/ledger/trial-balance"
+          }
+        },
+        {
+          "name": "API-SAL-02 - Księgowanie faktury",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const invoice = pm.response.json();",
+                  "pm.environment.set('salesInvoice2', invoice.id);",
+                  "pm.environment.set('paymentPartner2', invoice.partnerId);",
+                  "pm.environment.set('paymentRemainder', String(Number(invoice.openBalance) - 100));",
+                  "pm.environment.set('paymentOriginalBalance', String(invoice.openBalance));",
+                  "pm.test('API-SAL-02 - Księgowanie faktury', function (done) {",
+                  "  pm.expect(invoice.journalEntryId).to.be.a('number');",
+                  "  pm.expect(Number(invoice.goodsAmount)).to.eql(200);",
+                  "  pm.expect(Number(invoice.vatAmount)).to.eql(10);",
+                  "  pm.expect(Number(invoice.cogsAmount)).to.eql(20);",
+                  "  pm.expect(Number(invoice.grossAmount)).to.eql(210);",
+                  "  pm.expect(Number(invoice.openBalance)).to.eql(Number(invoice.grossAmount));",
+                  "  pm.expect(Number(invoice.openBalance)).to.be.greaterThan(100);",
+                  "  const before = JSON.parse(pm.environment.get('salesLedgerBeforeInvoice'));",
+                  "  const url = pm.variables.replaceIn('{{baseUrl}}/api/ledger/trial-balance');",
+                  "  pm.sendRequest({ url: url, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (error, response) {",
+                  "    if (error) return done(error);",
+                  "    try {",
+                  "      pm.expect(response.code).to.eql(200);",
+                  "      const trialBalance = response.json();",
+                  "      pm.expect(trialBalance.balanced).to.eql(true);",
+                  "      const current = {};",
+                  "      ['1200', '4100', '2400', '5100', '1340'].forEach(function (code) {",
+                  "        const line = trialBalance.lines.find(function (item) { return item.code === code; });",
+                  "        pm.expect(line, 'Account ' + code + ' must exist in the trial balance').to.exist;",
+                  "        current[code] = { debit: Number(line.totalDebit), credit: Number(line.totalCredit) };",
+                  "      });",
+                  "      pm.expect(current['1200'].debit - before['1200'].debit).to.eql(210);",
+                  "      pm.expect(current['4100'].credit - before['4100'].credit).to.eql(200);",
+                  "      pm.expect(current['2400'].credit - before['2400'].credit).to.eql(10);",
+                  "      pm.expect(current['5100'].debit - before['5100'].debit).to.eql(20);",
+                  "      pm.expect(current['1340'].credit - before['1340'].credit).to.eql(20);",
+                  "      done();",
+                  "    } catch (assertionError) { done(assertionError); }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"salesOrderId\":\"{{salesOrder2}}\",\"taxRateCode\":\"STANDARD\",\"postingDate\":\"{{postingDate}}\",\"lines\":[{\"soLineId\":\"{{salesLine2}}\",\"qty\":\"2\",\"unitPrice\":\"100\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/sales/sales-invoices"
+          }
+        }
+      ]
+    },
+    {
+      "name": "API-PRD-01 - Manufacturing",
+      "item": [
+        {
+          "name": "Test 1 - Prepare raw material",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('rawItem1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-RAW1-{{runId}}\",\"name\":\"Postman raw material 1\",\"itemType\":\"RAW\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"10\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 1 - Prepare finished item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('finishedItem1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-FG1-{{runId}}\",\"name\":\"Postman finished product 1\",\"itemType\":\"FINISHED\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 1 - Seed raw material stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{rawItem1}}\",\"locationId\":\"{{stockLocationId}}\",\"qtyDelta\":\"20\",\"unitCost\":\"10\",\"reason\":\"Postman API test stock\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/inventory/adjustments"
+          }
+        },
+        {
+          "name": "Test 1 - Create BOM",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('bom1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"parentItemId\":\"{{finishedItem1}}\",\"outputQty\":\"1\",\"components\":[{\"componentItemId\":\"{{rawItem1}}\",\"qtyPer\":\"1\",\"scrapPct\":\"0\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/boms"
+          }
+        },
+        {
+          "name": "Test 1 - Create work order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('workOrder1', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{finishedItem1}}\",\"bomId\":\"{{bom1}}\",\"qtyToProduce\":\"2\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/work-orders"
+          }
+        },
+        {
+          "name": "Test 1 - Release work order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/manufacturing/work-orders/{{workOrder1}}/release"
+          }
+        },
+        {
+          "name": "API-PRD-01 - Pobranie surowców",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const workOrder = pm.response.json();",
+                  "pm.test('API-PRD-01 - Pobranie surowców', function () {",
+                  "  pm.expect(workOrder.status).to.eql('IN_PROGRESS');",
+                  "  pm.expect(workOrder.components).to.have.lengthOf(1);",
+                  "  pm.expect(Number(workOrder.components[0].consumedQty)).to.eql(2);",
+                  "  pm.expect(Number(workOrder.components[0].consumedValue)).to.eql(20);",
+                  "  pm.expect(workOrder.components[0].journalEntryId).to.be.a('number');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"stockLocationId\":\"{{stockLocationId}}\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/work-orders/{{workOrder1}}/issue"
+          }
+        },
+        {
+          "name": "Test 2 - Prepare raw material",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('rawItem2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-RAW2-{{runId}}\",\"name\":\"Postman raw material 2\",\"itemType\":\"RAW\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"10\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 2 - Prepare finished item",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('finishedItem2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"sku\":\"PM-FG2-{{runId}}\",\"name\":\"Postman finished product 2\",\"itemType\":\"FINISHED\",\"uom\":\"EA\",\"stocked\":true,\"standardCost\":\"0\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/masterdata/items"
+          }
+        },
+        {
+          "name": "Test 2 - Seed raw material stock",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{rawItem2}}\",\"locationId\":\"{{stockLocationId}}\",\"qtyDelta\":\"20\",\"unitCost\":\"10\",\"reason\":\"Postman API test stock\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/inventory/adjustments"
+          }
+        },
+        {
+          "name": "Test 2 - Create BOM",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('bom2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"parentItemId\":\"{{finishedItem2}}\",\"outputQty\":\"1\",\"components\":[{\"componentItemId\":\"{{rawItem2}}\",\"qtyPer\":\"1\",\"scrapPct\":\"0\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/boms"
+          }
+        },
+        {
+          "name": "Test 2 - Create work order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('workOrder2', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"itemId\":\"{{finishedItem2}}\",\"bomId\":\"{{bom2}}\",\"qtyToProduce\":\"2\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/work-orders"
+          }
+        },
+        {
+          "name": "Test 2 - Release work order",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/manufacturing/work-orders/{{workOrder2}}/release"
+          }
+        },
+        {
+          "name": "Test 2 - Issue raw materials",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"stockLocationId\":\"{{stockLocationId}}\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/work-orders/{{workOrder2}}/issue"
+          }
+        },
+        {
+          "name": "API-PRD-02 - Przyjęcie wyrobu gotowego",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const workOrder = pm.response.json();",
+                  "pm.test('API-PRD-02 - Przyjęcie wyrobu gotowego', function (done) {",
+                  "  pm.expect(workOrder.status).to.eql('DONE');",
+                  "  pm.expect(Number(workOrder.qtyProduced)).to.eql(2);",
+                  "  pm.expect(Number(workOrder.totalComponentCost)).to.eql(20);",
+                  "  const url = pm.variables.replaceIn('{{baseUrl}}/api/inventory/items/{{finishedItem2}}/on-hand');",
+                  "  pm.sendRequest({ url: url, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (error, response) {",
+                  "    if (error) return done(error);",
+                  "    try {",
+                  "      pm.expect(response.code).to.eql(200);",
+                  "      const stock = response.json();",
+                  "      pm.expect(Number(stock.onHandQty)).to.eql(2);",
+                  "      pm.expect(Number(stock.avgUnitCost)).to.eql(10);",
+                  "      pm.expect(Number(stock.totalValue)).to.eql(20);",
+                  "      done();",
+                  "    } catch (assertionError) { done(assertionError); }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"qtyProduced\":\"2\",\"stockLocationId\":\"{{stockLocationId}}\",\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/manufacturing/work-orders/{{workOrder2}}/complete"
+          }
+        }
+      ]
+    },
+    {
+      "name": "API-PAY-01 - Payments",
+      "item": [
+        {
+          "name": "Capture ledger before customer receipts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const trialBalance = pm.response.json();",
+                  "const snapshot = {};",
+                  "['1200', '1010'].forEach(function (code) {",
+                  "  const line = trialBalance.lines.find(function (item) { return item.code === code; });",
+                  "  pm.expect(line, 'Account ' + code + ' must exist in the trial balance').to.exist;",
+                  "  snapshot[code] = { debit: Number(line.totalDebit), credit: Number(line.totalCredit) };",
+                  "});",
+                  "pm.environment.set('paymentLedgerBeforeReceipt', JSON.stringify(snapshot));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/ledger/trial-balance"
+          }
+        },
+        {
+          "name": "Test 1 - Allocate partial customer receipt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payment = pm.response.json();",
+                  "pm.test('API-PAY-01 - Rejestracja wpłaty klienta', function (done) {",
+                  "  pm.expect(payment.direction).to.eql('IN');",
+                  "  pm.expect(payment.status).to.eql('POSTED');",
+                  "  pm.expect(payment.journalEntryId).to.be.a('number');",
+                  "  pm.expect(payment.allocations).to.have.lengthOf(1);",
+                  "  pm.expect(Number(payment.allocations[0].documentId)).to.eql(Number(pm.environment.get('salesInvoice2')));",
+                  "  pm.expect(Number(payment.allocations[0].amount)).to.eql(100);",
+                  "  const before = JSON.parse(pm.environment.get('paymentLedgerBeforeReceipt'));",
+                  "  const invoiceUrl = pm.variables.replaceIn('{{baseUrl}}/api/sales/sales-invoices/{{salesInvoice2}}');",
+                  "  pm.sendRequest({ url: invoiceUrl, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (invoiceError, invoiceResponse) {",
+                  "    if (invoiceError) return done(invoiceError);",
+                  "    try {",
+                  "      pm.expect(invoiceResponse.code).to.eql(200);",
+                  "      const invoice = invoiceResponse.json();",
+                  "      pm.expect(invoice.status).to.eql('PARTIALLY_PAID');",
+                  "      pm.expect(Number(invoice.amountReceived)).to.eql(100);",
+                  "      pm.expect(Number(invoice.openBalance)).to.eql(Number(pm.environment.get('paymentRemainder')));",
+                  "      const ledgerUrl = pm.variables.replaceIn('{{baseUrl}}/api/ledger/trial-balance');",
+                  "      pm.sendRequest({ url: ledgerUrl, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (ledgerError, ledgerResponse) {",
+                  "        if (ledgerError) return done(ledgerError);",
+                  "        try {",
+                  "          pm.expect(ledgerResponse.code).to.eql(200);",
+                  "          const trialBalance = ledgerResponse.json();",
+                  "          const ar = trialBalance.lines.find(function (line) { return line.code === '1200'; });",
+                  "          const cash = trialBalance.lines.find(function (line) { return line.code === '1010'; });",
+                  "          pm.expect(ar).to.exist;",
+                  "          pm.expect(cash).to.exist;",
+                  "          pm.expect(Number(ar.totalDebit) - Number(ar.totalCredit) - (before['1200'].debit - before['1200'].credit)).to.eql(-100);",
+                  "          pm.expect(Number(cash.totalDebit) - Number(cash.totalCredit) - (before['1010'].debit - before['1010'].credit)).to.eql(100);",
+                  "          pm.environment.set('paymentLedgerAfterPartial', JSON.stringify({",
+                  "            '1200': { debit: Number(ar.totalDebit), credit: Number(ar.totalCredit) },",
+                  "            '1010': { debit: Number(cash.totalDebit), credit: Number(cash.totalCredit) }",
+                  "          }));",
+                  "          done();",
+                  "        } catch (assertionError) { done(assertionError); }",
+                  "      });",
+                  "    } catch (assertionError) { done(assertionError); }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"partnerId\":\"{{paymentPartner2}}\",\"amount\":\"100\",\"postingDate\":\"{{postingDate}}\",\"allocations\":[{\"invoiceId\":\"{{salesInvoice2}}\",\"amount\":\"100\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/payments/in"
+          }
+        },
+        {
+          "name": "API-PAY-02 - Rozliczenie pozostałej wpłaty",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payment = pm.response.json();",
+                  "pm.test('API-PAY-02 - Rozliczenie pozostałej wpłaty', function (done) {",
+                  "  pm.expect(payment.direction).to.eql('IN');",
+                  "  pm.expect(payment.status).to.eql('POSTED');",
+                  "  pm.expect(payment.journalEntryId).to.be.a('number');",
+                  "  pm.expect(payment.allocations).to.have.lengthOf(1);",
+                  "  pm.expect(Number(payment.allocations[0].documentId)).to.eql(Number(pm.environment.get('salesInvoice2')));",
+                  "  pm.expect(Number(payment.allocations[0].amount)).to.eql(Number(pm.environment.get('paymentRemainder')));",
+                  "  const before = JSON.parse(pm.environment.get('paymentLedgerAfterPartial'));",
+                  "  const invoiceUrl = pm.variables.replaceIn('{{baseUrl}}/api/sales/sales-invoices/{{salesInvoice2}}');",
+                  "  pm.sendRequest({ url: invoiceUrl, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (invoiceError, invoiceResponse) {",
+                  "    if (invoiceError) return done(invoiceError);",
+                  "    try {",
+                  "      pm.expect(invoiceResponse.code).to.eql(200);",
+                  "      const invoice = invoiceResponse.json();",
+                  "      pm.expect(invoice.status).to.eql('PAID');",
+                  "      pm.expect(Number(invoice.openBalance)).to.eql(0);",
+                  "      pm.expect(Number(invoice.amountReceived)).to.eql(Number(invoice.grossAmount));",
+                  "      const ledgerUrl = pm.variables.replaceIn('{{baseUrl}}/api/ledger/trial-balance');",
+                  "      pm.sendRequest({ url: ledgerUrl, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (ledgerError, ledgerResponse) {",
+                  "        if (ledgerError) return done(ledgerError);",
+                  "        try {",
+                  "          pm.expect(ledgerResponse.code).to.eql(200);",
+                  "          const trialBalance = ledgerResponse.json();",
+                  "          const ar = trialBalance.lines.find(function (line) { return line.code === '1200'; });",
+                  "          const cash = trialBalance.lines.find(function (line) { return line.code === '1010'; });",
+                  "          pm.expect(ar).to.exist;",
+                  "          pm.expect(cash).to.exist;",
+                  "          pm.expect(Number(ar.totalDebit) - Number(ar.totalCredit) - (before['1200'].debit - before['1200'].credit)).to.eql(-Number(pm.environment.get('paymentRemainder')));",
+                  "          pm.expect(Number(cash.totalDebit) - Number(cash.totalCredit) - (before['1010'].debit - before['1010'].credit)).to.eql(Number(pm.environment.get('paymentRemainder')));",
+                  "          pm.expect(trialBalance.balanced).to.eql(true);",
+                  "          done();",
+                  "        } catch (assertionError) { done(assertionError); }",
+                  "      });",
+                  "    } catch (assertionError) { done(assertionError); }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"partnerId\":\"{{paymentPartner2}}\",\"amount\":\"{{paymentRemainder}}\",\"postingDate\":\"{{postingDate}}\",\"allocations\":[{\"invoiceId\":\"{{salesInvoice2}}\",\"amount\":\"{{paymentRemainder}}\"}]}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/payments/in"
+          }
+        }
+      ]
+    },
+    {
+      "name": "API-HR-01 - HR payroll",
+      "item": [
+        {
+          "name": "Prepare payroll department",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('hrDepartment', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"PM-HR-D-{{runId}}\",\"name\":\"Postman test department\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/hr/departments"
+          }
+        },
+        {
+          "name": "Prepare payroll position",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('hrPosition', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"PM-HR-P-{{runId}}\",\"title\":\"Postman test position\",\"standardSalary\":\"5000\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/hr/positions"
+          }
+        },
+        {
+          "name": "Prepare active payroll employee",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('hrEmployee', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"code\":\"PM-HR-E-{{runId}}\",\"firstName\":\"Postman\",\"lastName\":\"Payroll Test\",\"departmentId\":\"{{hrDepartment}}\",\"positionId\":\"{{hrPosition}}\",\"monthlySalary\":\"5000\",\"status\":\"ACTIVE\",\"hireDate\":\"2024-01-01\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/hr/employees"
+          }
+        },
+        {
+          "name": "Find unused payroll period",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payrolls = pm.response.json();",
+                  "const now = new Date();",
+                  "let year = now.getFullYear();",
+                  "let month = now.getMonth() + 1;",
+                  "let found = false;",
+                  "for (let i = 0; i < 36; i++) {",
+                  "  if (!payrolls.some(function (p) { return Number(p.periodYear) === year && Number(p.periodMonth) === month; })) { found = true; break; }",
+                  "  month += 1;",
+                  "  if (month > 12) { month = 1; year += 1; }",
+                  "}",
+                  "pm.expect(found, 'No unused payroll period found in the next 36 months').to.eql(true);",
+                  "pm.environment.set('payrollYear', String(year));",
+                  "pm.environment.set('payrollMonth', String(month));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/hr/payroll"
+          }
+        },
+        {
+          "name": "API-HR-01 - Wyliczenie listy płac",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payroll = pm.response.json();",
+                  "pm.environment.set('payrollId', payroll.id);",
+                  "pm.test('API-HR-01 - Wyliczenie listy płac', function () {",
+                  "  pm.expect(payroll.status).to.eql('DRAFT');",
+                  "  pm.expect(Number(payroll.periodYear)).to.eql(Number(pm.environment.get('payrollYear')));",
+                  "  pm.expect(Number(payroll.periodMonth)).to.eql(Number(pm.environment.get('payrollMonth')));",
+                  "  const line = payroll.lines.find(function (item) { return Number(item.employeeId) === Number(pm.environment.get('hrEmployee')); });",
+                  "  pm.expect(line, 'The test employee must appear in payroll').to.exist;",
+                  "  pm.expect(Number(line.gross)).to.eql(5000);",
+                  "  pm.expect(Number(line.tax)).to.eql(300);",
+                  "  pm.expect(Number(line.insurance)).to.eql(250);",
+                  "  pm.expect(Number(line.net)).to.eql(4450);",
+                  "  pm.expect(Number(payroll.grossTotal)).to.eql(Number(payroll.taxTotal) + Number(payroll.insuranceTotal) + Number(payroll.netTotal));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"year\":\"{{payrollYear}}\",\"month\":\"{{payrollMonth}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/hr/payroll"
+          }
+        },
+        {
+          "name": "Capture ledger before payroll posting",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const trialBalance = pm.response.json();",
+                  "const snapshot = {};",
+                  "['6100', '2200', '2210', '2220'].forEach(function (code) {",
+                  "  const line = trialBalance.lines.find(function (item) { return item.code === code; });",
+                  "  pm.expect(line, 'Account ' + code + ' must exist in the trial balance').to.exist;",
+                  "  snapshot[code] = { debit: Number(line.totalDebit), credit: Number(line.totalCredit) };",
+                  "});",
+                  "pm.environment.set('payrollLedgerBeforePost', JSON.stringify(snapshot));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/ledger/trial-balance"
+          }
+        },
+        {
+          "name": "API-HR-02 - Księgowanie listy płac",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payroll = pm.response.json();",
+                  "pm.test('API-HR-02 - Księgowanie listy płac', function (done) {",
+                  "  pm.expect(payroll.status).to.eql('POSTED');",
+                  "  pm.expect(payroll.journalEntryId).to.be.a('number');",
+                  "  pm.expect(Number(payroll.grossTotal)).to.eql(Number(payroll.taxTotal) + Number(payroll.insuranceTotal) + Number(payroll.netTotal));",
+                  "  const before = JSON.parse(pm.environment.get('payrollLedgerBeforePost'));",
+                  "  const url = pm.variables.replaceIn('{{baseUrl}}/api/ledger/trial-balance');",
+                  "  pm.sendRequest({ url: url, method: 'GET', header: { Authorization: 'Bearer ' + pm.environment.get('accessToken') } }, function (error, response) {",
+                  "    if (error) return done(error);",
+                  "    try {",
+                  "      pm.expect(response.code).to.eql(200);",
+                  "      const trialBalance = response.json();",
+                  "      pm.expect(trialBalance.balanced).to.eql(true);",
+                  "      pm.expect(Number(trialBalance.totalDebit)).to.eql(Number(trialBalance.totalCredit));",
+                  "      const totals = {};",
+                  "      ['6100', '2200', '2210', '2220'].forEach(function (code) {",
+                  "        const line = trialBalance.lines.find(function (item) { return item.code === code; });",
+                  "        pm.expect(line, 'Account ' + code + ' must exist in the trial balance').to.exist;",
+                  "        totals[code] = { debit: Number(line.totalDebit), credit: Number(line.totalCredit) };",
+                  "      });",
+                  "      pm.expect(totals['6100'].debit - before['6100'].debit).to.eql(Number(payroll.grossTotal));",
+                  "      pm.expect(totals['2200'].credit - before['2200'].credit).to.eql(Number(payroll.netTotal));",
+                  "      pm.expect(totals['2210'].credit - before['2210'].credit).to.eql(Number(payroll.taxTotal));",
+                  "      pm.expect(totals['2220'].credit - before['2220'].credit).to.eql(Number(payroll.insuranceTotal));",
+                  "      done();",
+                  "    } catch (assertionError) { done(assertionError); }",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"postingDate\":\"{{postingDate}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/hr/payroll/{{payrollId}}/post"
+          }
+        }
+      ]
+    }
+  ]
+}

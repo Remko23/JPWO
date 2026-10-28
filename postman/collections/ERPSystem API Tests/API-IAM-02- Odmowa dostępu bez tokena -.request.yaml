@@ -1,0 +1,21 @@
+$kind: http-request
+name: "API-IAM-02: Odmowa dostępu bez tokena -"
+url: http://localhost:8081/api/iam/protected-resource
+method: GET
+body:
+  type: json
+  content: ""
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-IAM-02: Brak tokena - Status 401 Unauthorized", function () {
+          pm.response.to.have.status(401);
+      });
+
+      pm.test("API-IAM-02: Zwrot błędu braku autoryzacji w JSON", function () {
+          var jsonData = pm.response.json();
+          var errorMessage = jsonData.title || jsonData.detail || jsonData.error || "";
+          pm.expect(errorMessage.toLowerCase()).to.include("unauthorized");
+      });
+    language: text/javascript
+order: 2000

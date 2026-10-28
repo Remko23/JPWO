@@ -1,0 +1,36 @@
+$kind: http-request
+name: "API-IAM-01: Logowanie użytkownika +"
+url: http://localhost:8081/api/auth/login
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "username": "admin",
+      "password": "admin"
+    }
+auth:
+  type: basic
+  credentials:
+    username: admin
+    password: "{{auth_password_1abp}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test("API-IAM-01: Logowanie poprawne - Status 200 OK", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("API-IAM-01: Token JWT zwracany w odpowiedzi", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData).to.have.property('accessToken');
+          pm.collectionVariables.set("jwt_token", jsonData.accessToken)
+      });
+
+      pm.test("API-IAM-02-PRE: Sprawdzenie obecności ciasteczka refresh_token", function () {
+          pm.expect(pm.cookies.has("refresh_token")).to.be.true;
+      });
+    language: text/javascript
+order: 1000

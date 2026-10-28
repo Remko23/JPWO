@@ -1,0 +1,24 @@
+$kind: collection
+description: ""
+variables:
+  - key: jwt_token
+    value: ""
+    disabled: false
+    secret: false
+  - key: warehouse_token
+    value: ""
+    disabled: false
+    secret: false
+  - key: guest_token
+    value: ""
+    disabled: false
+    secret: false
+  - key: auth_password_1abp
+    secret: true
+    disabled: false
+  - key: auth_password_1670
+    secret: true
+    disabled: false
+  - key: "{{auth_password_1670}}_token"
+    value: ""
+    disabled: false
